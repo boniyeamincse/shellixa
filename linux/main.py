@@ -85,6 +85,22 @@ class ShellixaApp(QMainWindow):
         
         logger.info("Shellixa Main Window Loaded Successfully")
 
+    def auth_gate(self):
+        """Show login or setup dialog to unlock the vault."""
+        meta = self.db.get_security_metadata()
+        is_setup = not ('master_salt' in meta and 'master_pw_hash' in meta)
+        
+        login = LoginDialog(self, is_setup=is_setup)
+        if login.exec():
+            logger.info("Vault unlocked successfully")
+            # The LoginDialog already initializes SecurityManager on success
+            # We must refresh UI components that might have loaded before auth 
+            # (though here we call it before building UI)
+            return True
+        else:
+            logger.warning("Vault unlock cancelled or failed")
+            return False
+
     def init_toolbar(self):
         self.toolbar = QToolBar("Main Toolbar")
         self.addToolBar(self.toolbar)
