@@ -29,4 +29,4 @@ We love your input! We want to make contributing to Shellixa as easy and transpa
 
 ---
 
-[← Future Roadmap](11-roadmap.md) | [Index](README.md) | [Installation Guide →](13-installation.md)
+[← Development Plan](11-roadmap.md) | [Index](README.md) | [Installation Guide →](13-installation.md)

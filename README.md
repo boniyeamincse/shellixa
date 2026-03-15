@@ -22,7 +22,20 @@ Everything you need to know about Shellixa is available in our [Documentation Ce
 1.  **[Overview](docs/01-overview.md)**: What is Shellixa?
 2.  **[Installation Guide](docs/13-installation.md)**: Get started in seconds.
 3.  **[Security](docs/10-security.md)**: How we keep your keys safe.
-4.  **[Roadmap](docs/11-roadmap.md)**: What's coming next (SFTP, Tunnels, and more).
+4.  **[Development Plan](docs/11-roadmap.md)**: Phased implementation status and remaining feature work.
+
+## 🗺️ Development Plan
+
+Shellixa is being delivered in six phases, moving from core infrastructure to premium productivity features and release packaging.
+
+-   **Phase 1: Core Foundation** `[Done]` - Database layer, configuration system, main window layout, and logging.
+-   **Phase 2: SSH Connectivity & Terminal** `[Done]` - Interactive SSH sessions, terminal integration, command streaming, and multi-session support.
+-   **Phase 3: Host Management & UX** `[Done]` - Visual host manager, grouping and inheritance, search, and recent connections.
+-   **Phase 4: Security & Vault** `[Done]` - Key management, AES-256 vault encryption, master password, and FIDO2 support.
+-   **Phase 5: Productivity & Polish** `[In Progress]` - Snippet library, Helium AI suggestions, theme engine, and SFTP basics.
+-   **Phase 6: Packaging & Distribution** `[Planned]` - `.deb` and `.rpm` installers built with PyInstaller or similar tooling.
+
+See the full phased roadmap in **[docs/11-roadmap.md](docs/11-roadmap.md)**.
 
 ## 📦 Installation
 

@@ -16,7 +16,7 @@ This documentation is organized into several modules to help you understand, use
 8.  **[UI Pages Guide](08-ui-pages.md)** - A walkthrough of the application's user interface.
 9.  **[Operation Workflow](09-workflow.md)** - How the system works step-by-step.
 10. **[Security Overview](10-security.md)** - Secure credential storage and SSH authentication details.
-11. **[Future Roadmap](11-roadmap.md)** - Upcoming features and project goals.
+11. **[Development Plan](11-roadmap.md)** - Phased delivery plan and current implementation status.
 12. **[Contributing Guide](12-contributing.md)** - How to get involved and contribute to Shellixa.
 13. **[Installation Guide](13-installation.md)** - How to install Shellixa on your Linux system.
 14. **[License Information](14-license.md)** - Details about the open-source license.

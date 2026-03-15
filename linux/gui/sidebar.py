@@ -11,28 +11,19 @@ class Sidebar(QWidget):
     def __init__(self):
         super().__init__()
         self.db = DBHandler()
+        self.setProperty("class", "sidebar")
         self.setFixedWidth(280)
         self.setStyleSheet("""
-            Sidebar { 
-                background-color: #16161e; 
-                border-right: 1px solid #414868; 
-            }
             QLineEdit { 
-                background-color: #24283b; 
-                border: 1px solid #414868; 
                 border-radius: 4px; 
                 padding: 5px; 
-                color: #a9b1d6;
                 margin-bottom: 10px;
             }
             QTreeWidget { 
                 background-color: transparent; 
                 border: none; 
-                color: #a9b1d6; 
                 font-size: 13px;
             }
-            QTreeWidget::item:selected { background-color: #414868; color: #7aa2f7; }
-            QTreeWidget::item:hover { background-color: #24283b; }
         """)
 
         self.layout = QVBoxLayout(self)
@@ -46,7 +37,8 @@ class Sidebar(QWidget):
 
         # 2. Main Tree (Favorites & Groups)
         self.label_connections = QLabel("CONNECTIONS")
-        self.label_connections.setStyleSheet("font-weight: bold; color: #565f89; font-size: 11px; margin-top: 10px;")
+        self.label_connections.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 10px;")
+        self.label_connections.setProperty("class", "muted")
         self.layout.addWidget(self.label_connections)
 
         self.tree = QTreeWidget()
@@ -57,7 +49,8 @@ class Sidebar(QWidget):
 
         # 3. Recents Section
         self.label_recents = QLabel("RECENT SESSIONS")
-        self.label_recents.setStyleSheet("font-weight: bold; color: #565f89; font-size: 11px; margin-top: 20px;")
+        self.label_recents.setStyleSheet("font-weight: bold; font-size: 11px; margin-top: 20px;")
+        self.label_recents.setProperty("class", "muted")
         self.layout.addWidget(self.label_recents)
 
         self.recent_list = QTreeWidget()

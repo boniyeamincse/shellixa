@@ -1,14 +1,19 @@
 import sys
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QVBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QComboBox, QMainWindow, QTabWidget, QVBoxLayout,
                              QWidget, QHBoxLayout, QPushButton, QToolBar, QMessageBox)
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
+from database.db_handler import DBHandler
 from gui.dashboard import Dashboard
+from gui.sftp_browser import SFTPBrowser
+from gui.snippet_library import SnippetLibrary
 from gui.terminal_tab import TerminalTab
 from gui.sidebar import Sidebar
 from gui.key_manager import KeyManager
 from gui.logs_viewer import LogsViewer
+from utils.config import Config
 from utils.logger import logger
+from utils.theme import ThemeManager
 
 def exception_hook(exctype, value, traceback):
     """Global exception handler to log uncaught exceptions."""
@@ -19,21 +24,13 @@ class ShellixaApp(QMainWindow):
     def __init__(self):
         super().__init__()
         logger.info("Initializing Shellixa Main Window")
+        self.config = Config()
+        self.theme_manager = ThemeManager(self.config)
+        self.last_terminal = None
         
         self.setWindowTitle("Shellixa - Modern SSH Workstation")
         self.resize(1200, 800)
-        
-        # Apply Global Style (Tokyo Night inspired)
-        self.setStyleSheet("""
-            QMainWindow { background-color: #1a1b26; }
-            QWidget { background-color: #1a1b26; color: #a9b1d6; font-family: 'Segoe UI', sans-serif; }
-            QTabWidget::pane { border: 1px solid #414868; top: -1px; background-color: #1a1b26; }
-            QTabBar::tab { background: #24283b; padding: 10px 20px; border-top-left-radius: 4px; border-top-right-radius: 4px; margin-right: 2px; }
-            QTabBar::tab:selected { background: #414868; color: #7aa2f7; border-bottom: 2px solid #7aa2f7; }
-            QPushButton { background-color: #24283b; border: 1px solid #414868; padding: 5px 15px; border-radius: 3px; }
-            QPushButton:hover { background-color: #414868; }
-            QToolBar { background-color: #16161e; border-bottom: 1px solid #414868; spacing: 10px; padding: 5px; }
-        """)
+        self.theme_manager.apply_theme(self)
 
         # Main Layout Setup
         self.central_widget = QWidget()
@@ -61,6 +58,7 @@ class ShellixaApp(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
+        self.tabs.currentChanged.connect(self.on_tab_changed)
         
         self.dashboard = Dashboard()
         self.dashboard.connect_requested.connect(self.on_host_selected)
@@ -76,6 +74,15 @@ class ShellixaApp(QMainWindow):
         self.logs_viewer = LogsViewer()
         self.tabs.addTab(self.logs_viewer, "Logs")
         self.tabs.tabBar().setTabButton(2, self.tabs.tabBar().ButtonPosition.RightSide, None)
+
+        self.snippet_library = SnippetLibrary()
+        self.snippet_library.snippet_run_requested.connect(self.run_snippet_on_active_tab)
+        self.tabs.addTab(self.snippet_library, "Snippets")
+        self.tabs.tabBar().setTabButton(3, self.tabs.tabBar().ButtonPosition.RightSide, None)
+
+        self.sftp_browser = SFTPBrowser()
+        self.tabs.addTab(self.sftp_browser, "SFTP")
+        self.tabs.tabBar().setTabButton(4, self.tabs.tabBar().ButtonPosition.RightSide, None)
 
         # Initial Session
         self.add_terminal_tab("Local Terminal")
@@ -115,9 +122,18 @@ class ShellixaApp(QMainWindow):
 
         # New Connection Button
         self.new_conn_btn = QPushButton("+ New Connection")
-        self.new_conn_btn.setStyleSheet("background-color: #2ac3de; color: #1a1b26; font-weight: bold;")
+        self.new_conn_btn.setProperty("class", "primary")
         self.new_conn_btn.clicked.connect(lambda: self.add_terminal_tab("New Session"))
         self.toolbar.addWidget(self.new_conn_btn)
+
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(self.theme_manager.available_themes())
+        current_theme = self.config.get("theme")
+        current_index = self.theme_combo.findText(current_theme)
+        if current_index >= 0:
+            self.theme_combo.setCurrentIndex(current_index)
+        self.theme_combo.currentTextChanged.connect(self.change_theme)
+        self.toolbar.addWidget(self.theme_combo)
 
     def on_host_selected(self, host_data):
         """Handle host selection from sidebar with credential inheritance."""
@@ -157,15 +173,45 @@ class ShellixaApp(QMainWindow):
         terminal = TerminalTab(name, connection)
         index = self.tabs.addTab(terminal, name)
         self.tabs.setCurrentIndex(index)
+        self.on_tab_changed(index)
         logger.info(f"New terminal tab added: {name}")
 
     def close_tab(self, index):
-        if index > 2: # Don't close Dashboard, Key Manager, or Logs
+        if index > 4: # Don't close Dashboard, Key Manager, Logs, Snippets, or SFTP
             widget = self.tabs.widget(index)
+            if widget is self.last_terminal:
+                self.last_terminal = None
             if widget:
                 widget.close() # TerminalTab handles its own cleanup in closeEvent
             self.tabs.removeTab(index)
             logger.info(f"Tab at index {index} removed")
+
+    def get_active_terminal(self):
+        widget = self.tabs.currentWidget()
+        if isinstance(widget, TerminalTab):
+            return widget
+        return self.last_terminal
+
+    def run_snippet_on_active_tab(self, command):
+        terminal = self.get_active_terminal()
+        if not terminal:
+            QMessageBox.information(self, "No Active Terminal", "Open or select a terminal tab before running a snippet.")
+            return
+        terminal.execute_command(command)
+
+    def on_tab_changed(self, index):
+        widget = self.tabs.widget(index)
+        if isinstance(widget, TerminalTab) and widget.connection:
+            self.last_terminal = widget
+            self.sftp_browser.set_connection(widget.connection, widget.host_name)
+        elif widget is self.sftp_browser and self.last_terminal and self.last_terminal.connection:
+            self.sftp_browser.set_connection(self.last_terminal.connection, self.last_terminal.host_name)
+        else:
+            self.sftp_browser.set_connection(None, None)
+
+    def change_theme(self, theme_name):
+        self.theme_manager.apply_theme(self, theme_name)
+        self.sidebar.refresh_data()
 
     def toggle_sidebar(self):
         self.sidebar_visible = not self.sidebar_visible

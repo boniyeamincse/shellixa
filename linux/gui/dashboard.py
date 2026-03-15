@@ -94,15 +94,12 @@ class HostCard(QFrame):
     def __init__(self, host):
         super().__init__()
         self.host = host
+        self.setProperty("class", "card")
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet("""
-            HostCard { 
-                background-color: #24283b; 
-                border: 1px solid #414868; 
-                border-radius: 8px; 
+            HostCard {
                 margin: 5px;
             }
-            HostCard:hover { border: 1px solid #7aa2f7; }
         """)
         
         self.layout = QHBoxLayout(self)
@@ -126,9 +123,11 @@ class HostCard(QFrame):
         # Info
         self.info_layout = QVBoxLayout()
         self.name_label = QLabel(host['name'])
-        self.name_label.setStyleSheet("font-weight: bold; font-size: 14px; color: #7aa2f7;")
+        self.name_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self.name_label.setProperty("class", "accent")
         self.detail_label = QLabel(f"{host['username']}@{host['hostname']}")
-        self.detail_label.setStyleSheet("color: #565f89; font-size: 12px;")
+        self.detail_label.setStyleSheet("font-size: 12px;")
+        self.detail_label.setProperty("class", "muted")
         self.info_layout.addWidget(self.name_label)
         self.info_layout.addWidget(self.detail_label)
         self.layout.addLayout(self.info_layout)
@@ -137,7 +136,7 @@ class HostCard(QFrame):
 
         # Actions
         self.connect_btn = QPushButton("Connect")
-        self.connect_btn.setStyleSheet("background-color: #7aa2f7; color: #1a1b26;")
+        self.connect_btn.setProperty("class", "primary")
         self.connect_btn.clicked.connect(lambda: self.connect_clicked.emit(self.host))
         
         self.edit_btn = QPushButton("✎")
@@ -148,7 +147,7 @@ class HostCard(QFrame):
         self.delete_btn = QPushButton("🗑")
         self.delete_btn.setToolTip("Delete")
         self.delete_btn.setFixedWidth(30)
-        self.delete_btn.setStyleSheet("color: #f7768e;")
+        self.delete_btn.setProperty("class", "danger")
         self.delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.host['id']))
 
         self.layout.addWidget(self.connect_btn)
@@ -169,7 +168,7 @@ class Dashboard(QWidget):
         self.title = QLabel("Remote Hosts")
         self.title.setStyleSheet("font-size: 24px; font-weight: bold;")
         self.add_btn = QPushButton("+ Add Host")
-        self.add_btn.setStyleSheet("background-color: #bb9af7; color: #1a1b26; font-weight: bold;")
+        self.add_btn.setProperty("class", "primary")
         self.add_btn.clicked.connect(self.on_add_host)
         
         self.header.addWidget(self.title)

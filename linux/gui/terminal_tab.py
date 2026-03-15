@@ -1,7 +1,10 @@
 import pyte
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPlainTextEdit
+from PyQt6.QtWidgets import QHBoxLayout, QListWidget, QPushButton, QPlainTextEdit, QLineEdit, QWidget, QVBoxLayout
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from PyQt6.QtGui import QTextCursor, QFont
+from database.db_handler import DBHandler
+from utils.config import Config
+from utils.helium import HeliumSuggestionEngine
 from utils.logger import logger
 
 class TerminalThread(QThread):
@@ -33,6 +36,10 @@ class TerminalTab(QWidget):
         super().__init__()
         self.host_name = host_name
         self.connection = connection
+        self.config = Config()
+        self.db = DBHandler()
+        self.helium = HeliumSuggestionEngine()
+        self.command_history = []
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
@@ -42,12 +49,29 @@ class TerminalTab(QWidget):
         self.terminal_display.setFont(QFont("Monospace", 11))
         self.terminal_display.setStyleSheet("""
             QPlainTextEdit {
-                background-color: #1a1b26;
-                color: #a9b1d6;
                 border: none;
             }
         """)
         self.layout.addWidget(self.terminal_display)
+
+        self.command_row = QHBoxLayout()
+        self.command_input = QLineEdit()
+        self.command_input.setPlaceholderText("Type a command to run on the active session...")
+        self.command_input.returnPressed.connect(self.submit_command)
+        self.command_input.textChanged.connect(self.refresh_suggestions)
+
+        self.run_button = QPushButton("Run")
+        self.run_button.clicked.connect(self.submit_command)
+
+        self.command_row.addWidget(self.command_input, 1)
+        self.command_row.addWidget(self.run_button)
+        self.layout.addLayout(self.command_row)
+
+        self.suggestions = QListWidget()
+        self.suggestions.setMaximumHeight(120)
+        self.suggestions.itemClicked.connect(lambda item: self.command_input.setText(item.text()))
+        self.suggestions.itemDoubleClicked.connect(lambda item: self.execute_command(item.text()))
+        self.layout.addWidget(self.suggestions)
 
         # Terminal Emulator State (pyte)
         self.screen = pyte.Screen(80, 24)
@@ -55,6 +79,10 @@ class TerminalTab(QWidget):
 
         if self.connection:
             self.start_session()
+        else:
+            self.terminal_display.appendPlainText("Local session placeholder. Connect to a host to run remote commands and browse files.")
+
+        self.refresh_suggestions()
 
     def start_session(self):
         """Start the interactive SSH session and output thread."""
@@ -82,6 +110,39 @@ class TerminalTab(QWidget):
             self.terminal_display.verticalScrollBar().maximum()
         )
 
+    def supports_remote_actions(self):
+        return bool(self.connection and self.connection.shell)
+
+    def submit_command(self):
+        self.execute_command(self.command_input.text())
+
+    def execute_command(self, command):
+        normalized = (command or "").strip()
+        if not normalized:
+            return
+        if not self.supports_remote_actions():
+            self.terminal_display.appendPlainText(f"[Shellixa] No remote connection available for: {normalized}")
+            return
+
+        self.command_history.append(normalized)
+        self.connection.send_command(normalized + "\n")
+        self.command_input.clear()
+        self.refresh_suggestions()
+
+    def refresh_suggestions(self):
+        if not self.config.get("helium_enabled"):
+            self.suggestions.hide()
+            return
+        snippets = self.db.get_snippets(self.command_input.text().strip() or None)
+        items = self.helium.suggest(
+            self.command_input.text(),
+            history=list(reversed(self.command_history)),
+            snippets=snippets,
+        )
+        self.suggestions.clear()
+        self.suggestions.addItems(items)
+        self.suggestions.setVisible(bool(items))
+
     def keyPressEvent(self, event):
         """Handle key presses and send them to the SSH session."""
         if not self.connection or not self.connection.shell:
@@ -103,6 +164,7 @@ class TerminalTab(QWidget):
         if hasattr(self, 'thread'):
             self.thread.stop()
             self.thread.wait()
+        self.db.close()
         if self.connection:
             self.connection.disconnect()
         logger.info(f"Terminal tab closed: {self.host_name}")

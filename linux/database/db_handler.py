@@ -68,6 +68,17 @@ class DBHandler:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS snippets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                command TEXT NOT NULL,
+                tags TEXT DEFAULT '',
+                usage_count INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         self.conn.commit()
         logger.debug("Database tables created/verified")
 
@@ -266,6 +277,67 @@ class DBHandler:
         logger.warning(f"Deleting security key id {key_id}")
         cursor = self.conn.cursor()
         cursor.execute('DELETE FROM security_keys WHERE id = ?', (key_id,))
+        self.conn.commit()
+
+    # --- Snippet Operations ---
+    def add_snippet(self, title, command, tags=""):
+        logger.info(f"Adding snippet: {title}")
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO snippets (title, command, tags)
+            VALUES (?, ?, ?)
+        ''', (title, command, tags))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_snippets(self, query=None):
+        cursor = self.conn.cursor()
+        if query:
+            search = f"%{query}%"
+            cursor.execute('''
+                SELECT * FROM snippets
+                WHERE title LIKE ? OR command LIKE ? OR tags LIKE ?
+                ORDER BY usage_count DESC, title ASC
+            ''', (search, search, search))
+        else:
+            cursor.execute('SELECT * FROM snippets ORDER BY usage_count DESC, title ASC')
+        return [dict(row) for row in cursor.fetchall()]
+
+    def update_snippet(self, snippet_id, title=None, command=None, tags=None):
+        logger.info(f"Updating snippet id {snippet_id}")
+        updates = []
+        values = []
+        if title is not None:
+            updates.append("title = ?")
+            values.append(title)
+        if command is not None:
+            updates.append("command = ?")
+            values.append(command)
+        if tags is not None:
+            updates.append("tags = ?")
+            values.append(tags)
+        if not updates:
+            return
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        values.append(snippet_id)
+        cursor = self.conn.cursor()
+        cursor.execute(f"UPDATE snippets SET {', '.join(updates)} WHERE id = ?", tuple(values))
+        self.conn.commit()
+
+    def increment_snippet_usage(self, snippet_id):
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            UPDATE snippets
+            SET usage_count = usage_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (snippet_id,))
+        self.conn.commit()
+
+    def delete_snippet(self, snippet_id):
+        logger.warning(f"Deleting snippet id {snippet_id}")
+        cursor = self.conn.cursor()
+        cursor.execute('DELETE FROM snippets WHERE id = ?', (snippet_id,))
         self.conn.commit()
 
     def close(self):
