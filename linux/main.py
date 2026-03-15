@@ -1,16 +1,25 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QVBoxLayout, 
-                             QWidget, QHBoxLayout, QPushButton, QToolBar)
+                             QWidget, QHBoxLayout, QPushButton, QToolBar, QMessageBox)
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 from gui.dashboard import Dashboard
 from gui.terminal_tab import TerminalTab
 from gui.sidebar import Sidebar
 from gui.key_manager import KeyManager
+from gui.logs_viewer import LogsViewer
+from utils.logger import logger
+
+def exception_hook(exctype, value, traceback):
+    """Global exception handler to log uncaught exceptions."""
+    logger.error("Uncaught Exception", exc_info=(exctype, value, traceback))
+    sys.__excepthook__(exctype, value, traceback)
 
 class ShellixaApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        logger.info("Initializing Shellixa Main Window")
+        
         self.setWindowTitle("Shellixa - Modern SSH Workstation")
         self.resize(1200, 800)
         
@@ -55,12 +64,18 @@ class ShellixaApp(QMainWindow):
         self.key_manager = KeyManager()
         self.tabs.addTab(self.key_manager, "Key Management")
 
+        # Logs Viewer
+        self.logs_viewer = LogsViewer()
+        self.tabs.addTab(self.logs_viewer, "Logs")
+
         # Initial Session
         self.terminal = TerminalTab("Local Terminal")
         self.tabs.addTab(self.terminal, "Local Terminal")
 
         self.content_layout.addWidget(self.tabs)
         self.main_layout.addWidget(self.content_container)
+        
+        logger.info("Shellixa Main Window Loaded Successfully")
 
     def init_toolbar(self):
         self.toolbar = QToolBar("Main Toolbar")
@@ -80,14 +95,19 @@ class ShellixaApp(QMainWindow):
         self.toolbar.addWidget(self.new_conn_btn)
 
     def toggle_sidebar(self):
-        if self.sidebar_visible:
-            self.sidebar.hide()
-            self.sidebar_visible = False
-        else:
-            self.sidebar.show()
-            self.sidebar_visible = True
+        self.sidebar_visible = not self.sidebar_visible
+        self.sidebar.setVisible(self.sidebar_visible)
+        logger.debug(f"Sidebar visibility toggled to: {self.sidebar_visible}")
+
+    def closeEvent(self, event):
+        """Handle application shutdown."""
+        logger.info("Application shutting down")
+        event.accept()
 
 if __name__ == "__main__":
+    # Install exception hook
+    sys.excepthook = exception_hook
+    
     app = QApplication(sys.argv)
     window = ShellixaApp()
     window.show()
