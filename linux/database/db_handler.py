@@ -58,6 +58,16 @@ class DBHandler:
                 value TEXT
             )
         ''')
+        # Security Keys Table (FIDO2 / Hardware keys)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS security_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                credential_id TEXT NOT NULL,
+                public_key TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         self.conn.commit()
         logger.debug("Database tables created/verified")
 
@@ -234,6 +244,28 @@ class DBHandler:
         logger.warning(f"Deleting key id {key_id}")
         cursor = self.conn.cursor()
         cursor.execute('DELETE FROM ssh_keys WHERE id = ?', (key_id,))
+        self.conn.commit()
+
+    # --- Security Keys (FIDO2) ---
+    def add_security_key(self, name, credential_id, public_key):
+        logger.info(f"Adding new Security Key: {name}")
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO security_keys (name, credential_id, public_key)
+            VALUES (?, ?, ?)
+        ''', (name, credential_id, public_key))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_security_keys(self):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT * FROM security_keys')
+        return [dict(row) for row in cursor.fetchall()]
+
+    def delete_security_key(self, key_id):
+        logger.warning(f"Deleting security key id {key_id}")
+        cursor = self.conn.cursor()
+        cursor.execute('DELETE FROM security_keys WHERE id = ?', (key_id,))
         self.conn.commit()
 
     def close(self):
