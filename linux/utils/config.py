@@ -13,7 +13,9 @@ class Config:
             "auto_connect": False,
             "save_history": True,
             "last_connected_host": None,
-            "language": "en"
+            "language": "en",
+            "helium_enabled": True,
+            "default_sftp_path": "."
         }
         self.data = self.load()
 
