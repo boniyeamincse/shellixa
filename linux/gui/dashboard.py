@@ -19,7 +19,17 @@ class HostDialog(QDialog):
         self.username_edit = QLineEdit()
         self.password_edit = QLineEdit()
         self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        
+        # Managed Keys Dropdown
+        self.db = DBHandler()
+        self.key_combo = QComboBox()
+        self.key_combo.addItem("-- Manual Path --", None)
+        keys = self.db.get_keys()
+        for k in keys:
+            self.key_combo.addItem(f"🔑 {k['name']}", k['private_path'])
+        
         self.key_edit = QLineEdit()
+        self.key_edit.setPlaceholderText("Manual key path...")
         
         # OS Type for Icons
         self.os_combo = QComboBox()
@@ -30,7 +40,14 @@ class HostDialog(QDialog):
             self.hostname_edit.setText(host_data.get('hostname', ''))
             self.username_edit.setText(host_data.get('username', ''))
             self.password_edit.setText(host_data.get('password', ''))
-            self.key_edit.setText(host_data.get('key_path', ''))
+            
+            p_path = host_data.get('key_path', '')
+            self.key_edit.setText(p_path)
+            # Try to select the key in combo if it matches a path
+            for i in range(1, self.key_combo.count()):
+                if self.key_combo.itemData(i) == p_path:
+                    self.key_combo.setCurrentIndex(i)
+                    break
             
             index = self.os_combo.findText(host_data.get('os_type', 'Linux'))
             if index >= 0:
@@ -40,6 +57,7 @@ class HostDialog(QDialog):
         self.form.addRow("Hostname/IP:", self.hostname_edit)
         self.form.addRow("Username:", self.username_edit)
         self.form.addRow("Password:", self.password_edit)
+        self.form.addRow("Managed Key:", self.key_combo)
         self.form.addRow("Key Path:", self.key_edit)
         self.form.addRow("OS Type:", self.os_combo)
 
@@ -55,12 +73,16 @@ class HostDialog(QDialog):
         self.layout.addLayout(self.buttons)
 
     def get_data(self):
+        # Use managed key path if selected, otherwise use manual edit
+        selected_key = self.key_combo.currentData()
+        final_key_path = selected_key if selected_key else self.key_edit.text()
+        
         return {
             "name": self.name_edit.text(),
             "hostname": self.hostname_edit.text(),
             "username": self.username_edit.text(),
             "password": self.password_edit.text(),
-            "key_path": self.key_edit.text(),
+            "key_path": final_key_path,
             "os_type": self.os_combo.currentText()
         }
 

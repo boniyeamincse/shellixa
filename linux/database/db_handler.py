@@ -38,6 +38,17 @@ class DBHandler:
                 FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE SET NULL
             )
         ''')
+        # SSH Keys Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ssh_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                private_path TEXT NOT NULL,
+                public_path TEXT,
+                type TEXT DEFAULT 'RSA',
+                passphrase TEXT
+            )
+        ''')
         self.conn.commit()
         logger.debug("Database tables created/verified")
 
@@ -123,6 +134,28 @@ class DBHandler:
         logger.warning(f"Deleting host id {host_id}")
         cursor = self.conn.cursor()
         cursor.execute('DELETE FROM hosts WHERE id = ?', (host_id,))
+        self.conn.commit()
+
+    # --- Key Operations ---
+    def add_key(self, name, private_path, public_path=None, key_type='RSA', passphrase=None):
+        logger.info(f"Adding new SSH key: {name}")
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            INSERT INTO ssh_keys (name, private_path, public_path, type, passphrase)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (name, private_path, public_path, key_type, passphrase))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_keys(self):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT * FROM ssh_keys')
+        return [dict(row) for row in cursor.fetchall()]
+
+    def delete_key(self, key_id):
+        logger.warning(f"Deleting key id {key_id}")
+        cursor = self.conn.cursor()
+        cursor.execute('DELETE FROM ssh_keys WHERE id = ?', (key_id,))
         self.conn.commit()
 
     def close(self):
