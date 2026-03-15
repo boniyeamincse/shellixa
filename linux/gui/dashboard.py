@@ -134,6 +134,8 @@ class HostCard(QFrame):
         self.layout.addWidget(self.delete_btn)
 
 class Dashboard(QWidget):
+    connect_requested = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         self.db = DBHandler()
@@ -176,6 +178,7 @@ class Dashboard(QWidget):
         else:
             for host in hosts:
                 card = HostCard(host)
+                card.connect_clicked.connect(self.connect_requested.emit)
                 card.edit_clicked.connect(self.on_edit_host)
                 card.delete_clicked.connect(self.on_delete_host)
                 self.list_layout.addWidget(card)

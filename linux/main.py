@@ -45,6 +45,7 @@ class ShellixaApp(QMainWindow):
         # 1. Sidebar
         self.sidebar_visible = True
         self.sidebar = Sidebar()
+        self.sidebar.host_selected.connect(self.on_host_selected)
         self.main_layout.addWidget(self.sidebar)
 
         # 2. Content Area Container
@@ -62,6 +63,7 @@ class ShellixaApp(QMainWindow):
         self.tabs.tabCloseRequested.connect(self.close_tab)
         
         self.dashboard = Dashboard()
+        self.dashboard.connect_requested.connect(self.on_host_selected)
         self.tabs.addTab(self.dashboard, "Dashboard")
         # Hide close button for Dashboard
         self.tabs.tabBar().setTabButton(0, self.tabs.tabBar().ButtonPosition.RightSide, None)
@@ -100,6 +102,40 @@ class ShellixaApp(QMainWindow):
         self.new_conn_btn.setStyleSheet("background-color: #2ac3de; color: #1a1b26; font-weight: bold;")
         self.new_conn_btn.clicked.connect(lambda: self.add_terminal_tab("New Session"))
         self.toolbar.addWidget(self.new_conn_btn)
+
+    def on_host_selected(self, host_data):
+        """Handle host selection from sidebar with credential inheritance."""
+        from backend.ssh_connection import SSHConnection
+        
+        # Inheritance Logic
+        final_user = host_data.get('username')
+        final_pass = host_data.get('password')
+        final_key = host_data.get('key_path')
+        
+        group_id = host_data.get('group_id')
+        db = DBHandler()
+        
+        # Traverse up groups if credentials are missing
+        while group_id and (not final_user or not (final_pass or final_key)):
+            groups = db.get_groups() # This is inefficient (fetches all), but works for now
+            group = next((g for g in groups if g['id'] == group_id), None)
+            if not group: break
+            
+            if not final_user: final_user = group.get('username')
+            if not final_pass: final_pass = group.get('password')
+            if not final_key: final_key = group.get('key_path')
+            
+            group_id = group.get('parent_id')
+
+        # Fallback to local user if still empty (maybe?) 
+        # For now, just attempt connection
+        conn = SSHConnection(host_data['hostname'], final_user, final_pass, final_key)
+        if conn.connect():
+            self.add_terminal_tab(host_data['name'], conn)
+            # Update Dashboard/Sidebar Recents
+            self.sidebar.refresh_data()
+        else:
+            QMessageBox.critical(self, "Connection Failed", f"Could not connect to {host_data['name']}")
 
     def add_terminal_tab(self, name, connection=None):
         terminal = TerminalTab(name, connection)
