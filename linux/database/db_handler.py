@@ -28,6 +28,7 @@ class DBHandler:
                 username TEXT NOT NULL,
                 password TEXT,
                 key_path TEXT,
+                os_type TEXT DEFAULT 'Linux',
                 group_id INTEGER,
                 FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE SET NULL
             )
