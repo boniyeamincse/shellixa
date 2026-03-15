@@ -58,19 +58,25 @@ class ShellixaApp(QMainWindow):
 
         # Tabs
         self.tabs = QTabWidget()
+        self.tabs.setTabsClosable(True)
+        self.tabs.tabCloseRequested.connect(self.close_tab)
+        
         self.dashboard = Dashboard()
         self.tabs.addTab(self.dashboard, "Dashboard")
+        # Hide close button for Dashboard
+        self.tabs.tabBar().setTabButton(0, self.tabs.tabBar().ButtonPosition.RightSide, None)
         
         self.key_manager = KeyManager()
         self.tabs.addTab(self.key_manager, "Key Management")
+        self.tabs.tabBar().setTabButton(1, self.tabs.tabBar().ButtonPosition.RightSide, None)
 
         # Logs Viewer
         self.logs_viewer = LogsViewer()
         self.tabs.addTab(self.logs_viewer, "Logs")
+        self.tabs.tabBar().setTabButton(2, self.tabs.tabBar().ButtonPosition.RightSide, None)
 
         # Initial Session
-        self.terminal = TerminalTab("Local Terminal")
-        self.tabs.addTab(self.terminal, "Local Terminal")
+        self.add_terminal_tab("Local Terminal")
 
         self.content_layout.addWidget(self.tabs)
         self.main_layout.addWidget(self.content_container)
@@ -92,7 +98,22 @@ class ShellixaApp(QMainWindow):
         # New Connection Button
         self.new_conn_btn = QPushButton("+ New Connection")
         self.new_conn_btn.setStyleSheet("background-color: #2ac3de; color: #1a1b26; font-weight: bold;")
+        self.new_conn_btn.clicked.connect(lambda: self.add_terminal_tab("New Session"))
         self.toolbar.addWidget(self.new_conn_btn)
+
+    def add_terminal_tab(self, name, connection=None):
+        terminal = TerminalTab(name, connection)
+        index = self.tabs.addTab(terminal, name)
+        self.tabs.setCurrentIndex(index)
+        logger.info(f"New terminal tab added: {name}")
+
+    def close_tab(self, index):
+        if index > 2: # Don't close Dashboard, Key Manager, or Logs
+            widget = self.tabs.widget(index)
+            if widget:
+                widget.close() # TerminalTab handles its own cleanup in closeEvent
+            self.tabs.removeTab(index)
+            logger.info(f"Tab at index {index} removed")
 
     def toggle_sidebar(self):
         self.sidebar_visible = not self.sidebar_visible
@@ -102,6 +123,11 @@ class ShellixaApp(QMainWindow):
     def closeEvent(self, event):
         """Handle application shutdown."""
         logger.info("Application shutting down")
+        # Ensure all tabs are closed to trigger their cleanup
+        for i in range(self.tabs.count()-1, -1, -1):
+            widget = self.tabs.widget(i)
+            if widget:
+                widget.close()
         event.accept()
 
 if __name__ == "__main__":
